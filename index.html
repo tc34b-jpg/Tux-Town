@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tux Town - Open World Camera Update</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tux Town - Mobile Joystick Update</title>
     <style>
         :root {
             --matrix-green: #00ff41;
@@ -17,6 +17,10 @@
             font-family: 'Courier New', Courier, monospace;
             overflow: hidden;
             height: 100%;
+            /* Evita que a tela fique dando zoom ou selecionando coisas no celular */
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
         }
 
         /* --- TELA DE INÍCIO --- */
@@ -29,10 +33,10 @@
 
         .menu-card {
             background: rgba(20, 20, 20, 0.95);
-            padding: 30px; border-radius: 15px;
+            padding: 20px; border-radius: 15px;
             border: 2px solid var(--matrix-green);
             box-shadow: 0 0 25px var(--matrix-green);
-            width: 350px; text-align: center;
+            width: 85%; max-width: 350px; text-align: center;
         }
 
         #game-view { display: none; position: relative; width: 100vw; height: 100vh; }
@@ -41,12 +45,11 @@
         .btn-ui {
             position: absolute; background: rgba(0,0,0,0.85);
             border: 2px solid var(--ui-blue); color: var(--ui-blue);
-            padding: 10px 20px; cursor: pointer; border-radius: 6px;
+            padding: 8px 16px; cursor: pointer; border-radius: 6px;
             font-weight: bold; font-family: monospace; z-index: 10;
+            font-size: 14px;
         }
-        .btn-ui:hover { background: var(--ui-blue); color: #fff; box-shadow: 0 0 10px var(--ui-blue); }
-
-        #map-btn { bottom: 20px; left: 20px; }
+        #map-btn { bottom: 20px; right: 20px; } /* Mudado para a direita para não bater com o Joystick */
         #options-btn { top: 20px; right: 20px; }
 
         #options-menu {
@@ -55,38 +58,53 @@
             display: none; flex-direction: column; padding: 10px; border-radius: 5px; z-index: 10;
         }
 
+        /* --- JOYSTICK STYLES (MOBILE ONLY) --- */
+        #joystick-container {
+            position: absolute; bottom: 40px; left: 40px;
+            width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%; display: none; /* Só liga via JS se for mobile */
+            justify-content: center; align-items: center; z-index: 20;
+        }
+        #joystick-knob {
+            width: 50px; height: 50px;
+            background: var(--ui-blue);
+            box-shadow: 0 0 10px var(--ui-blue);
+            border-radius: 50%; cursor: pointer;
+        }
+
         /* --- POPUP DE PERGUNTAS --- */
         #challenge-popup {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: #090d16; border: 2px solid var(--ui-blue);
             box-shadow: 0 0 30px rgba(52, 152, 219, 0.5);
-            padding: 25px; border-radius: 8px; display: none;
-            width: 450px; text-align: center; z-index: 40;
+            padding: 20px; border-radius: 8px; display: none;
+            width: 90%; max-width: 450px; text-align: center; z-index: 40;
         }
 
         input, select, button {
-            width: 100%; padding: 12px; margin: 10px 0;
+            width: 100%; padding: 12px; margin: 8px 0;
             border-radius: 6px; border: 1px solid #333;
             background: #151515; color: #fff; font-family: monospace; box-sizing: border-box;
         }
         #btn-enter { background: var(--matrix-green); color: #000; font-weight: bold; cursor: pointer; border: none; }
-        .btn-choice { background: #0f172a; border: 1px solid #1e293b; text-align: left; cursor: pointer; transition: 0.2s; }
-        .btn-choice:hover { background: var(--ui-blue); border-color: #fff; }
+        .btn-choice { background: #0f172a; border: 1px solid #1e293b; text-align: left; cursor: pointer; font-size: 13px; }
     </style>
 </head>
 <body>
 
 <div id="start-screen">
-    <h1 style="color: var(--matrix-green); font-size: 3.5em; margin-bottom: 5px; letter-spacing: 2px;">TUX TOWN</h1>
-    <p style="color: #888; margin-top: 0; margin-bottom: 25px;">Open World Update v3.0 🎬</p>
+    <h1 style="color: var(--matrix-green); font-size: 2.8em; margin-bottom: 5px; letter-spacing: 2px;">TUX TOWN</h1>
+    <p style="color: #888; margin-top: 0; margin-bottom: 20px;">Mobile Engine v4.0 📱</p>
     <div class="menu-card">
         <h3 style="margin-top: 0; color: #fff;">CRIE SEU PINGUIM</h3>
-        <input type="text" id="p-name" placeholder="Nome do seu Tux..." maxlength="12" value="TuxExplorer">
+        <input type="text" id="p-name" placeholder="Nome do seu Tux..." maxlength="12" value="TuxMobile">
         
-        <label style="font-size: 12px; color: #aaa; display:block; margin-top:10px;">Cor do Corpo (HEX):</label>
-        <input type="color" id="p-color-body" value="#2c3e50">
+        <label style="font-size: 11px; color: #aaa; display:block; margin-top:5px;">Cor do Corpo:</label>
+        <input type="color" id="p-color-body" value="#16a085">
         
-        <label style="font-size: 12px; color: #aaa; display:block; margin-top:10px;">Sua Distro Inicial (Tag):</label>
+        <label style="font-size: 11px; color: #aaa; display:block; margin-top:5px;">Sua Distro Inicial:</label>
         <select id="p-tag">
             <option value="LFS">LFS</option>
             <option value="Arch">Arch Linux</option>
@@ -96,24 +114,28 @@
             <option value="Debian">Debian</option>
         </select>
         
-        <button id="btn-enter">ENTRAR NO MUNDO GIGANTE</button>
+        <button id="btn-enter">ENTRAR NO MUNDO</button>
     </div>
 </div>
 
 <div id="game-view">
     <canvas id="gameCanvas"></canvas>
     
+    <div id="joystick-container">
+        <div id="joystick-knob"></div>
+    </div>
+    
     <div id="map-btn" class="btn-ui">MAPA (M)</div>
     <div id="options-btn" class="btn-ui">OPÇÕES ⚙️</div>
     
     <div id="options-menu">
         <button onclick="location.reload()">Sair do Server</button>
-        <button onclick="alert('Controles:\n- ANDE PELO MAPA GIGANTE com WASD ou Setas\n- A câmera vai correr junto com você!\n- Aperte M para ver o Radar Global.')">Como Jogar</button>
+        <button onclick="alert('Controles:\n- PC: Use WASD/Setas do Teclado\n- Celular: Use o Joystick na tela e clique nos botões!')">Como Jogar</button>
     </div>
 
     <div id="challenge-popup">
-        <h3 id="challenge-title" style="color: var(--ui-blue); margin-top: 0; font-size: 18px;">PROMPT</h3>
-        <p id="challenge-text" style="font-size: 14px; color: #cbd5e1; text-align: left; line-height: 1.5;">Pergunta...</p>
+        <h3 id="challenge-title" style="color: var(--ui-blue); margin-top: 0; font-size: 16px;">PROMPT</h3>
+        <p id="challenge-text" style="font-size: 13px; color: #cbd5e1; text-align: left; line-height: 1.4;">Pergunta...</p>
         <div id="challenge-choices"></div>
         <button onclick="closeChallenge()" style="background: #ef4444; margin-top: 15px; border: none; font-weight: bold; cursor: pointer; color:#fff;">CANCELAR CONEXÃO</button>
     </div>
@@ -126,25 +148,22 @@
     function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     resize();
 
-    // --- DIMENSÕES DO MAPA GIGANTE (MUNDO IN-GAME) ---
+    // --- CONFIGS GLOBAIS ---
     const WORLD_WIDTH = 3000;
     const WORLD_HEIGHT = 3000;
 
-    // --- PLAYER CONFIG ---
-    let player = { 
-        x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, // Começa no centro exato do mapa gigante
-        name: "Tux", color: "#333", tag: "LFS", speed: 7 
-    };
-    
-    // Objeto da Câmera que vai seguir as coordenadas do Tux
+    let player = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, name: "Tux", color: "#333", tag: "LFS", speed: 6 };
     let camera = { x: 0, y: 0 };
-    
     let isMapOpen = false, activeChallenge = null, matrixFrame = 0;
-    
-    // Estrelas mapeadas no universo gigante
-    const stars = Array.from({length: 350}, () => ({ x: Math.random() * WORLD_WIDTH, y: Math.random() * WORLD_HEIGHT, r: Math.random() * 1.8 }));
+    let isMobile = false;
 
-    // --- CONFIGURAÇÃO DOS BIOMAS CENTRALIZADOS NO MUNDO REAL ---
+    // Elementos do Joystick
+    const joystickContainer = document.getElementById('joystick-container');
+    const joystickKnob = document.getElementById('joystick-knob');
+    let joystickVector = { x: 0, y: 0 }; // Guarda para onde o joystick está apontando
+
+    const stars = Array.from({length: 300}, () => ({ x: Math.random() * WORLD_WIDTH, y: Math.random() * WORLD_HEIGHT, r: Math.random() * 1.6 }));
+
     const totems = [
         {
             id: "kali", name: "Totem Kali Linux", x: 400, y: 400, color: "#a855f7",
@@ -168,7 +187,7 @@
         }
     ];
 
-    // --- BOTÕES ---
+    // --- INTERFACE ELEMENTOS ---
     const startScreen = document.getElementById('start-screen');
     const gameView = document.getElementById('game-view');
     const btnEnter = document.getElementById('btn-enter');
@@ -177,6 +196,14 @@
     const mapBtn = document.getElementById('map-btn');
     const challengePopup = document.getElementById('challenge-popup');
 
+    // --- DETECTA SE É MOBILE ---
+    function checkDevice() {
+        isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth < 800);
+        if (isMobile) {
+            joystickContainer.style.display = 'flex'; // Liga o joystick na tela
+        }
+    }
+
     btnEnter.onclick = () => {
         player.name = document.getElementById('p-name').value || "Tuxer";
         player.color = document.getElementById('p-color-body').value;
@@ -184,17 +211,57 @@
         
         startScreen.style.display = 'none';
         gameView.style.display = 'block';
+        checkDevice(); // Roda a detecção ao entrar
         gameLoop();
     };
 
     optionsBtn.onclick = () => optionsMenu.style.display = optionsMenu.style.display === 'flex' ? 'none' : 'flex';
     mapBtn.onclick = () => toggleMap();
 
+    // --- SISTEMA DE JOYSTICK (TOQUE TOUCH) ---
+    let joystickActive = false;
+    let dragStart = { x: 0, y: 0 };
+    const maxRadius = 45; // Máximo que a bolinha azul pode correr dentro do aro
+
+    joystickContainer.addEventListener('touchstart', (e) => {
+        joystickActive = true;
+        const touch = e.touches[0];
+        const rect = joystickContainer.getBoundingClientRect();
+        // Centro do analógico
+        dragStart = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+    });
+
+    window.addEventListener('touchmove', (e) => {
+        if (!joystickActive) return;
+        const touch = e.touches[0];
+        
+        let dx = touch.clientX - dragStart.x;
+        let dy = touch.clientY - dragStart.y;
+        let distance = Math.sqrt(dx*dx + dy*dy);
+
+        if (distance > maxRadius) {
+            dx = (dx / distance) * maxRadius;
+            dy = (dy / distance) * maxRadius;
+            distance = maxRadius;
+        }
+
+        // Move a bolinha visualmente
+        joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+
+        // Transforma o arrasto em velocidade pro Tux (entre -1 e 1)
+        joystickVector.x = dx / maxRadius;
+        joystickVector.y = dy / maxRadius;
+    });
+
+    window.addEventListener('touchend', () => {
+        joystickActive = false;
+        joystickKnob.style.transform = `translate(0px, 0px)`; // Volta pro centro
+        joystickVector = { x: 0, y: 0 }; // Para o pinguim
+    });
+
+    // --- CONTROLES DE TECLADO (PC) ---
     const keys = {};
-    window.onkeydown = (e) => {
-        keys[e.code] = true;
-        if(e.code === 'KeyM') toggleMap();
-    };
+    window.onkeydown = (e) => { keys[e.code] = true; if(e.code === 'KeyM') toggleMap(); };
     window.onkeyup = (e) => keys[e.code] = false;
 
     function toggleMap() { if (!activeChallenge) isMapOpen = !isMapOpen; }
@@ -215,11 +282,11 @@
             b.className = "btn-choice"; b.innerText = choice;
             b.onclick = () => {
                 if (idx === totem.correct) {
-                    alert("🔓 CONEXÃO ESTABELECIDA! Tag Atualizada.");
-                    player.tag = totem.id.charAt(0).toUpperCase() + totem.id.slice(1);
+                    alert("🔓 CONEXÃO ESTABELECIDA! Módulo ativado.");
+                    player.tag = totem.id.toUpperCase();
                     closeChallenge();
                 } else {
-                    alert("❌ Código recusado pelo firewall da Distro!");
+                    alert("❌ Comando inválido!");
                 }
             };
             divChoices.appendChild(b);
@@ -229,31 +296,28 @@
 
     function closeChallenge() {
         challengePopup.style.display = 'none'; activeChallenge = null;
-        player.x += (player.x < WORLD_WIDTH/2) ? 60 : -60; // Empurra para fora da área do totem
+        player.x += (player.x < WORLD_WIDTH/2) ? 70 : -70;
     }
 
-    // --- DRAW WORLD (RENDERS USING CAMERA OFFSET) ---
+    // --- ENGINE DE RENDER GRÁFICO (CÂMERA) ---
     function drawWorld() {
-        // Aplica o cálculo de onde o foco da tela deve estar com base no player
         camera.x = player.x - canvas.width / 2;
         camera.y = player.y - canvas.height / 2;
 
-        // Fundo Sideral Espacial (Bioma Debian)
+        // Fundo Debian
         ctx.fillStyle = "#030208"; ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Estrelas se movem de acordo com a câmera
         ctx.fillStyle = "rgba(255,255,255,0.5)";
         stars.forEach(s => {
             let sx = s.x - camera.x; let sy = s.y - camera.y;
-            // Apenas renderiza se estiver visível no monitor
             if(sx >= 0 && sx <= canvas.width && sy >= 0 && sy <= canvas.height) {
                 ctx.beginPath(); ctx.arc(sx, sy, s.r, 0, Math.PI*2); ctx.fill();
             }
         });
         
-        // Grande Espiral Roxa da Debian desenhada no centro do Universo Gigante
-        ctx.strokeStyle = "rgba(168, 85, 247, 0.12)"; ctx.lineWidth = 8; ctx.beginPath();
-        for (let i = 0; i < 200; i++) {
+        // Espiral Debian
+        ctx.strokeStyle = "rgba(168, 85, 247, 0.12)"; ctx.lineWidth = 6; ctx.beginPath();
+        for (let i = 0; i < 180; i++) {
             let angle = 0.15 * i;
             let x = (WORLD_WIDTH / 2) + (15 + 5 * angle) * Math.cos(angle) - camera.x;
             let y = (WORLD_HEIGHT / 2) + (15 + 5 * angle) * Math.sin(angle) - camera.y;
@@ -264,148 +328,124 @@
         const cx = WORLD_WIDTH / 2 - camera.x; 
         const cy = WORLD_HEIGHT / 2 - camera.y;
 
-        // Grandes Rodovias Digitais (Pontes) interligando os mundos gigantes
-        ctx.strokeStyle = "#121824"; ctx.lineWidth = 60;
+        // Rodovias cinzas
+        ctx.strokeStyle = "#121824"; ctx.lineWidth = 50;
         ctx.beginPath(); ctx.moveTo(WORLD_WIDTH/2 - camera.x, 200 - camera.y); ctx.lineTo(WORLD_WIDTH/2 - camera.x, WORLD_HEIGHT - 200 - camera.y); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(200 - camera.x, WORLD_HEIGHT/2 - camera.y); ctx.lineTo(WORLD_WIDTH - 200 - camera.x, WORLD_HEIGHT/2 - camera.y); ctx.stroke();
 
-        // 1. ILHA CENTRAL GIGANTE (LFS - O Vazio Matrix)
-        let lfsX = WORLD_WIDTH / 2 - 250 - camera.x;
-        let lfsY = WORLD_HEIGHT / 2 - 250 - camera.y;
-        ctx.fillStyle = "#0d1117"; ctx.fillRect(lfsX, lfsY, 500, 500);
-        ctx.strokeStyle = "#00ff41"; ctx.lineWidth = 3; ctx.strokeRect(lfsX, lfsY, 500, 500);
+        // LFS (Centro)
+        let lfsX = WORLD_WIDTH / 2 - 200 - camera.x;
+        let lfsY = WORLD_HEIGHT / 2 - 200 - camera.y;
+        ctx.fillStyle = "#0d1117"; ctx.fillRect(lfsX, lfsY, 400, 400);
+        ctx.strokeStyle = "#00ff41"; ctx.lineWidth = 2; ctx.strokeRect(lfsX, lfsY, 400, 400);
         
-        // Chuva Binária no Lobby
-        ctx.fillStyle = "rgba(0, 255, 65, 0.1)"; ctx.font = "11px monospace"; matrixFrame++;
-        for(let i=0; i<18; i++) {
-            for(let j=0; j<18; j++) {
-                ctx.fillText((Math.random() > 0.5 ? "1" : "0"), lfsX + 20 + i*26, lfsY + 30 + j*26 + (matrixFrame % 10));
+        ctx.fillStyle = "rgba(0, 255, 65, 0.1)"; ctx.font = "10px monospace"; matrixFrame++;
+        for(let i=0; i<15; i++) {
+            for(let j=0; j<15; j++) {
+                ctx.fillText((Math.random() > 0.5 ? "1" : "0"), lfsX + 15 + i*25, lfsY + 25 + j*25 + (matrixFrame % 10));
             }
         }
-        ctx.fillStyle = "#00ff41"; ctx.font = "bold 14px monospace"; ctx.textAlign = "center";
-        ctx.fillText("[ LFS CORE SERVER LOBBY ]", WORLD_WIDTH/2 - camera.x, WORLD_HEIGHT/2 - 210 - camera.y);
 
-        // 2. BIOMA KALI (Canto Superior Esquerdo do Universo)
+        // KALI (Sup. Esquerdo)
         let kaliX = 150 - camera.x; let kaliY = 150 - camera.y;
-        ctx.fillStyle = "#161920"; ctx.fillRect(kaliX, kaliY, 500, 400);
-        ctx.strokeStyle = "#a855f7"; ctx.strokeRect(kaliX, kaliY, 500, 400);
-        ctx.strokeStyle = "rgba(168, 85, 247, 0.3)"; ctx.lineWidth = 2; ctx.beginPath();
-        ctx.moveTo(kaliX+20, kaliY+20); ctx.lineTo(kaliX+200, kaliY+250); ctx.lineTo(kaliX+400, kaliY+150); ctx.stroke();
-        ctx.fillStyle = "#a855f7"; ctx.font = "14px monospace"; ctx.fillText("KALI CYBER DISTRICT 💀", kaliX + 180, kaliY + 40);
+        ctx.fillStyle = "#161920"; ctx.fillRect(kaliX, kaliY, 450, 350);
+        ctx.strokeStyle = "#a855f7"; ctx.strokeRect(kaliX, kaliY, 450, 350);
 
-        // 3. BIOMA ARCH (Canto Superior Direito)
-        let archX = (WORLD_WIDTH - 650) - camera.x; let archY = 150 - camera.y;
-        ctx.fillStyle = "#0f172a"; ctx.fillRect(archX, archY, 500, 400);
-        ctx.strokeStyle = "#0ea5e9"; ctx.strokeRect(archX, archY, 500, 400);
-        // Monólito Arch
-        ctx.fillStyle = "#020617"; ctx.fillRect(archX + 230, archY + 150, 40, 120);
-        ctx.strokeStyle = "#0ea5e9"; ctx.strokeRect(archX + 230, archY + 150, 40, 120);
-        ctx.fillStyle = "#0ea5e9"; ctx.fillText("ARCH FROZEN PLATFORM 🧊", archX + 200, archY + 40);
+        // ARCH (Sup. Direito)
+        let archX = (WORLD_WIDTH - 600) - camera.x; let archY = 150 - camera.y;
+        ctx.fillStyle = "#0f172a"; ctx.fillRect(archX, archY, 450, 350);
+        ctx.strokeStyle = "#0ea5e9"; ctx.strokeRect(archX, archY, 450, 350);
 
-        // 4. BIOMA UBUNTU (Canto Inferior Esquerdo)
-        let uX = 150 - camera.x; let uY = (WORLD_HEIGHT - 550) - camera.y;
-        ctx.fillStyle = "#2d1a10"; ctx.fillRect(uX, uY, 500, 400);
-        ctx.strokeStyle = "#ea580c"; ctx.strokeRect(uX, uY, 500, 400);
-        ctx.strokeStyle = "#ea580c"; ctx.beginPath(); ctx.arc(uX + 250, uY + 200, 60, 0, Math.PI*2); ctx.stroke();
-        ctx.fillStyle = "#ea580c"; ctx.fillText("UBUNTU COMMUNITY CAMP 🟠", uX + 200, uY + 40);
+        // UBUNTU (Inf. Esquerdo)
+        let uX = 150 - camera.x; let uY = (WORLD_HEIGHT - 500) - camera.y;
+        ctx.fillStyle = "#2d1a10"; ctx.fillRect(uX, uY, 450, 350);
+        ctx.strokeStyle = "#ea580c"; ctx.strokeRect(uX, uY, 450, 350);
 
-        // 5. BIOMA FEDORA (Canto Inferior Direito)
-        let fedX = (WORLD_WIDTH - 650) - camera.x; let fedY = (WORLD_HEIGHT - 550) - camera.y;
-        ctx.fillStyle = "#1e293b"; ctx.fillRect(fedX, fedY, 500, 400);
-        ctx.strokeStyle = "#3b82f6"; ctx.strokeRect(fedX, fedY, 500, 400);
-        ctx.strokeStyle = "rgba(59, 130, 246, 0.5)"; ctx.beginPath();
-        ctx.moveTo(fedX+50, fedY+300); ctx.lineTo(fedX+250, fedY+300); ctx.lineTo(fedX+350, fedY+150); ctx.stroke();
-        ctx.fillStyle = "#3b82f6"; ctx.fillText("FEDORA AUTOMATION DOCK 🔵", fedX + 200, fedY + 40);
+        // FEDORA (Inf. Direito)
+        let fedX = (WORLD_WIDTH - 600) - camera.x; let fedY = (WORLD_HEIGHT - 500) - camera.y;
+        ctx.fillStyle = "#1e293b"; ctx.fillRect(fedX, fedY, 450, 350);
+        ctx.strokeStyle = "#3b82f6"; ctx.strokeRect(fedX, fedY, 450, 350);
 
-        // DESENHAR OS TOTENS EM SUAS COORDENADAS REAIS DO MAPA
+        // TOTENS
         totems.forEach(t => {
             let tx = t.x - camera.x; let ty = t.y - camera.y;
-            ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(tx, ty, 25, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.stroke();
-            ctx.fillStyle = "#fff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
-            ctx.fillText("💻 TERMINAL", tx, ty - 32);
+            ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(tx, ty, 20, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
         });
     }
 
-    // --- RADAR / MINIMAPA GLOBAL (M) ---
+    // --- RADAR GERAL (M) ---
     function drawTacticalMap() {
         ctx.fillStyle = "rgba(4, 6, 12, 0.98)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = varColor('--ui-blue'); ctx.lineWidth = 4; ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
+        ctx.strokeStyle = "#3498db"; ctx.lineWidth = 3; ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-        ctx.fillStyle = varColor('--ui-blue'); ctx.font = "bold 22px monospace"; ctx.textAlign = "center";
-        ctx.fillText("SISTEMA DE RADAR GLOBAL (MUNDO EXPANDIDO)", canvas.width / 2, 80);
+        ctx.fillStyle = "#3498db"; ctx.font = "bold 16px monospace"; ctx.textAlign = "center";
+        ctx.fillText("RADAR GLOBAL DE DISTROS", canvas.width / 2, 60);
 
-        // Foco de render central do radar
         const rx = canvas.width / 2; const ry = canvas.height / 2;
         
-        // Desenha as representações proporcionais das distâncias no Radar
-        ctx.font = "12px monospace";
-        ctx.fillStyle = "#0d1117"; ctx.fillRect(rx-40, ry-40, 80, 80); ctx.fillStyle = "#00ff41"; ctx.fillText("LFS (LOBBY)", rx, ry+5);
-        ctx.fillStyle = "#161920"; ctx.fillRect(rx-190, ry-140, 100, 80); ctx.fillStyle = "#a855f7"; ctx.fillText("KALI ZONE", rx-140, ry-100);
-        ctx.fillStyle = "#0f172a"; ctx.fillRect(rx+90, ry-140, 100, 80);  ctx.fillStyle = "#0ea5e9"; ctx.fillText("ARCH BASE", rx+140, ry-100);
-        ctx.fillStyle = "#2d1a10"; ctx.fillRect(rx-190, ry+60, 100, 80);  ctx.fillStyle = "#ea580c"; ctx.fillText("UBUNTU", rx-140, ry+100);
-        ctx.fillStyle = "#1e293b"; ctx.fillRect(rx+90, ry+60, 100, 80);   ctx.fillStyle = "#3b82f6"; ctx.fillText("FEDORA", rx+140, ry+100);
+        ctx.font = "10px monospace";
+        ctx.fillStyle = "#0d1117"; ctx.fillRect(rx-30, ry-30, 60, 60); ctx.fillStyle = "#00ff41"; ctx.fillText("LFS", rx, ry+5);
+        ctx.fillStyle = "#161920"; ctx.fillRect(rx-140, ry-100, 70, 50); ctx.fillStyle = "#a855f7"; ctx.fillText("KALI", rx-105, ry-70);
+        ctx.fillStyle = "#0f172a"; ctx.fillRect(rx+70, ry-100, 70, 50);  ctx.fillStyle = "#0ea5e9"; ctx.fillText("ARCH", rx+105, ry-70);
+        ctx.fillStyle = "#2d1a10"; ctx.fillRect(rx-140, ry+50, 70, 50);  ctx.fillStyle = "#ea580c"; ctx.fillText("UBUNTU", rx-105, ry+80);
+        ctx.fillStyle = "#1e293b"; ctx.fillRect(rx+70, ry+50, 70, 50);   ctx.fillStyle = "#3b82f6"; ctx.fillText("FEDORA", rx+105, ry+80);
 
-        // Bolinha vermelha de rastreamento do jogador no Radar de Escala
-        let pulse = Math.abs(Math.sin(Date.now() / 120)) * 7;
+        // Bolinha vermelha do jogador
+        let pulse = Math.abs(Math.sin(Date.now() / 120)) * 5;
         ctx.fillStyle = "#ef4444"; ctx.beginPath();
-        // Mapeia a posição real de 3000x3000px para a proporção do radar da janela
-        let ratioX = (player.x / WORLD_WIDTH) * 360 + (rx - 180);
-        let ratioY = (player.y / WORLD_HEIGHT) * 280 + (ry - 140);
-        
-        ctx.arc(ratioX, ratioY, 6 + pulse, 0, Math.PI * 2); ctx.fill();
-        ctx.fillText("VOCÊ AQUI", ratioX, ratioY - 15);
-
-        ctx.fillStyle = "#555"; ctx.fillText("[ Pressione 'M' para fechar o Radar ]", canvas.width / 2, canvas.height - 70);
+        let ratioX = (player.x / WORLD_WIDTH) * 260 + (rx - 130);
+        let ratioY = (player.y / WORLD_HEIGHT) * 200 + (ry - 100);
+        ctx.arc(ratioX, ratioY, 5 + pulse, 0, Math.PI * 2); ctx.fill();
     }
 
-    // --- DRAW PLAYER (FIXADO EM RELAÇÃO À CÂMERA) ---
+    // --- DESENHO DO TUX ---
     function drawPlayer() {
-        // O jogador é desenhado na sua posição real MENOS o deslocamento da câmera
         const x = player.x - camera.x; const y = player.y - camera.y;
         ctx.textAlign = "center";
         
-        // Placa de Badge/Tag
-        ctx.fillStyle = "rgba(15, 23, 42, 0.92)"; ctx.fillRect(x - 35, y - 52, 70, 16);
-        ctx.strokeStyle = varColor('--ui-blue'); ctx.strokeRect(x - 35, y - 52, 70, 16);
-        ctx.fillStyle = "#fff"; ctx.font = "bold 9px Arial"; ctx.fillText(player.tag.toUpperCase(), x, y - 40);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.9)"; ctx.fillRect(x - 35, y - 50, 70, 15);
+        ctx.strokeStyle = "#3498db"; ctx.strokeRect(x - 35, y - 50, 70, 15);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 9px Arial"; ctx.fillText(player.tag.toUpperCase(), x, y - 39);
 
-        // Identificação
-        ctx.fillStyle = "#fff"; ctx.font = "12px monospace"; ctx.fillText(player.name, x, y + 35);
+        ctx.fillStyle = "#fff"; ctx.font = "11px monospace"; ctx.fillText(player.name, x, y + 32);
 
-        // Corpo
-        ctx.fillStyle = player.color; ctx.beginPath(); ctx.ellipse(x, y, 17, 23, 0, 0, Math.PI*2); ctx.fill();
-        // Barriga
-        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(x, y+4, 11, 16, 0, 0, Math.PI*2); ctx.fill();
-        // Rosto
-        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x-5, y-8, 2, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(x+5, y-8, 2, 0, 7); ctx.fill();
-        ctx.fillStyle = "orange"; ctx.fillRect(x-3.5, y-4, 7, 4.5);
+        ctx.fillStyle = player.color; ctx.beginPath(); ctx.ellipse(x, y, 15, 20, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(x, y+3, 10, 14, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x-4, y-7, 1.8, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(x+4, y-7, 1.8, 0, 7); ctx.fill();
+        ctx.fillStyle = "orange"; ctx.fillRect(x-3, y-3, 6, 4);
     }
 
-    // --- ENGINE PRINCIPAL ---
+    // --- GAME LOOP ---
     function loop() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         if (isMapOpen) {
             drawTacticalMap();
         } else {
-            // Movimentação livre pelo mapa infinito
-            if (!activeChallenge) {
+            // Movimentação por teclado (PC)
+            if (!activeChallenge && !joystickActive) {
                 if (keys['ArrowUp'] || keys['KeyW']) player.y -= player.speed;
                 if (keys['ArrowDown'] || keys['KeyS']) player.y += player.speed;
                 if (keys['ArrowLeft'] || keys['KeyA']) player.x -= player.speed;
                 if (keys['ArrowRight'] || keys['KeyD']) player.x += player.speed;
             }
+            
+            // Movimentação por Joystick (Mobile)
+            if (!activeChallenge && joystickActive) {
+                player.x += joystickVector.x * player.speed;
+                player.y += joystickVector.y * player.speed;
+            }
 
-            // Bloqueio físico das bordas finais do mapa de 3000px
-            if (player.x < 30) player.x = 30; if (player.x > WORLD_WIDTH - 30) player.x = WORLD_WIDTH - 30;
-            if (player.y < 30) player.y = 30; if (player.y > WORLD_HEIGHT - 30) player.y = WORLD_HEIGHT - 30;
+            // Colisão com as bordas do mapa 3000px
+            if (player.x < 25) player.x = 25; if (player.x > WORLD_WIDTH - 25) player.x = WORLD_WIDTH - 25;
+            if (player.y < 25) player.y = 25; if (player.y > WORLD_HEIGHT - 25) player.y = WORLD_HEIGHT - 25;
 
-            // Sensores de Proximidade dos totens gigantes
+            // Sensores de proximidade dos totens
             if (!activeChallenge) {
                 totems.forEach(t => {
                     let distance = Math.sqrt((player.x - t.x)**2 + (player.y - t.y)**2);
-                    if (distance < 45) openChallenge(t);
+                    if (distance < 40) openChallenge(t);
                 });
             }
 
@@ -416,7 +456,6 @@
     }
 
     function gameLoop() { loop(); }
-    function varColor(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
     window.onresize = () => { resize(); };
 </script>
 </body>
