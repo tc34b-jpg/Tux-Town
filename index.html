@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tux Town - Biomes Update</title>
+    <title>Tux Town - Open World Camera Update</title>
     <style>
         :root {
             --matrix-green: #00ff41;
@@ -55,7 +55,7 @@
             display: none; flex-direction: column; padding: 10px; border-radius: 5px; z-index: 10;
         }
 
-        /* --- POPUP DE PERGUNTAS (TERMINAL) --- */
+        /* --- POPUP DE PERGUNTAS --- */
         #challenge-popup {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: #090d16; border: 2px solid var(--ui-blue);
@@ -78,10 +78,10 @@
 
 <div id="start-screen">
     <h1 style="color: var(--matrix-green); font-size: 3.5em; margin-bottom: 5px; letter-spacing: 2px;">TUX TOWN</h1>
-    <p style="color: #888; margin-top: 0; margin-bottom: 25px;">Beta Biomes v2.0</p>
+    <p style="color: #888; margin-top: 0; margin-bottom: 25px;">Open World Update v3.0 🎬</p>
     <div class="menu-card">
         <h3 style="margin-top: 0; color: #fff;">CRIE SEU PINGUIM</h3>
-        <input type="text" id="p-name" placeholder="Nome do seu Tux..." maxlength="12" value="TuxHacker">
+        <input type="text" id="p-name" placeholder="Nome do seu Tux..." maxlength="12" value="TuxExplorer">
         
         <label style="font-size: 12px; color: #aaa; display:block; margin-top:10px;">Cor do Corpo (HEX):</label>
         <input type="color" id="p-color-body" value="#2c3e50">
@@ -96,7 +96,7 @@
             <option value="Debian">Debian</option>
         </select>
         
-        <button id="btn-enter">ENTRAR NO MUNDO</button>
+        <button id="btn-enter">ENTRAR NO MUNDO GIGANTE</button>
     </div>
 </div>
 
@@ -108,7 +108,7 @@
     
     <div id="options-menu">
         <button onclick="location.reload()">Sair do Server</button>
-        <button onclick="alert('Controles:\n- Mova com WASD ou Setas Teclado\n- Chegue perto dos totens para ativar as Questions\n- Aperte M para o Mapa tático.')">Como Jogar</button>
+        <button onclick="alert('Controles:\n- ANDE PELO MAPA GIGANTE com WASD ou Setas\n- A câmera vai correr junto com você!\n- Aperte M para ver o Radar Global.')">Como Jogar</button>
     </div>
 
     <div id="challenge-popup">
@@ -126,51 +126,55 @@
     function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     resize();
 
+    // --- DIMENSÕES DO MAPA GIGANTE (MUNDO IN-GAME) ---
+    const WORLD_WIDTH = 3000;
+    const WORLD_HEIGHT = 3000;
+
     // --- PLAYER CONFIG ---
-    let player = { x: 0, y: 0, name: "Tux", color: "#333", tag: "LFS", speed: 6 };
+    let player = { 
+        x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, // Começa no centro exato do mapa gigante
+        name: "Tux", color: "#333", tag: "LFS", speed: 7 
+    };
+    
+    // Objeto da Câmera que vai seguir as coordenadas do Tux
+    let camera = { x: 0, y: 0 };
+    
     let isMapOpen = false, activeChallenge = null, matrixFrame = 0;
     
-    // Estrelas de fundo para o bioma cósmico do Debian
-    const stars = Array.from({length: 60}, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.5 }));
+    // Estrelas mapeadas no universo gigante
+    const stars = Array.from({length: 350}, () => ({ x: Math.random() * WORLD_WIDTH, y: Math.random() * WORLD_HEIGHT, r: Math.random() * 1.8 }));
 
-    // --- CONFIGURAÇÃO DOS 6 BIOMAS E SEUS DESAFIOS ---
-    const biomes = {
-        LFS:    { name: "Lobby Central (LFS)", color: "#0d1117", borderColor: "#00ff41" },
-        Kali:   { name: "Zona Hacker Kali", color: "#161920", borderColor: "#a855f7" },
-        Arch:   { name: "Platô Gélido Arch", color: "#0f172a", borderColor: "#0ea5e9" },
-        Ubuntu: { name: "Colinas Ubuntu", color: "#2d1a10", borderColor: "#ea580c" },
-        Fedora: { name: "Distrito Tech Fedora", color: "#1e293b", borderColor: "#3b82f6" }
-    };
-
+    // --- CONFIGURAÇÃO DOS BIOMAS CENTRALIZADOS NO MUNDO REAL ---
     const totems = [
         {
-            id: "kali", name: "Totem Kali Linux", x: 250, y: 200, color: "#a855f7",
-            question: "[KALI CHALLENGE] Qual comando do pacote nmap é usado para escanear portas abertas em um IP alvo?",
+            id: "kali", name: "Totem Kali Linux", x: 400, y: 400, color: "#a855f7",
+            question: "[KALI] Qual comando do pacote nmap é usado para escanear portas abertas em um IP alvo?",
             choices: ["a) nmap -sS [IP]", "b) apt purge nmap", "c) cd /var/log", "d) ping localhost"], correct: 0
         },
         {
-            id: "arch", name: "Totem Arch Linux", x: window.innerWidth - 250, y: 200, color: "#0ea5e9",
-            question: "[ARCH CHALLENGE] Qual arquivo de configuração do Arch você edita para ativar repositórios espelhos (mirrors) de download?",
+            id: "arch", name: "Totem Arch Linux", x: WORLD_WIDTH - 400, y: 400, color: "#0ea5e9",
+            question: "[ARCH] Qual arquivo de configuração do Arch você edita para ativar repositórios espelhos de download?",
             choices: ["a) /etc/fstab", "b) /etc/pacman.d/mirrorlist", "c) /etc/hostname", "d) /boot/grub.cfg"], correct: 1
         },
         {
-            id: "ubuntu", name: "Totem Ubuntu", x: 250, y: window.innerHeight - 250, color: "#ea580c",
-            question: "[UBUNTU CHALLENGE] Como adicionar com segurança um repositório PPA de terceiros via terminal no Ubuntu?",
+            id: "ubuntu", name: "Totem Ubuntu", x: 400, y: WORLD_HEIGHT - 400, color: "#ea580c",
+            question: "[UBUNTU] Como adicionar com segurança um repositório PPA de terceiros via terminal no Ubuntu?",
             choices: ["a) rm -rf /", "b) sudo apt-get clean", "c) sudo add-apt-repository ppa:[nome]", "d) cat /etc/issue"], correct: 2
         },
         {
-            id: "fedora", name: "Totem Fedora", x: window.innerWidth - 250, y: window.innerHeight - 250, color: "#3b82f6",
-            question: "[FEDORA CHALLENGE] Qual é o gerenciador de pacotes moderno do Fedora usado para instalar arquivos .rpm?",
+            id: "fedora", name: "Totem Fedora", x: WORLD_WIDTH - 400, y: WORLD_HEIGHT - 400, color: "#3b82f6",
+            question: "[FEDORA] Qual é o gerenciador de pacotes moderno do Fedora usado para instalar arquivos .rpm?",
             choices: ["a) pacman", "b) dnf", "c) apt-get", "d) snap"], correct: 1
         }
     ];
 
-    // --- CONTROLES DE INTERFACE ---
+    // --- BOTÕES ---
     const startScreen = document.getElementById('start-screen');
     const gameView = document.getElementById('game-view');
     const btnEnter = document.getElementById('btn-enter');
     const optionsBtn = document.getElementById('options-btn');
     const optionsMenu = document.getElementById('options-menu');
+    const mapBtn = document.getElementById('map-btn');
     const challengePopup = document.getElementById('challenge-popup');
 
     btnEnter.onclick = () => {
@@ -180,19 +184,11 @@
         
         startScreen.style.display = 'none';
         gameView.style.display = 'block';
-        
-        // Coloca o pinguim no centro exato do Lobby
-        player.x = canvas.width / 2; player.y = canvas.height / 2;
-        
-        // Ajusta totens da direita/baixo ao tamanho da janela do usuário
-        totems[1].x = canvas.width - 250;
-        totems[2].y = canvas.height - 250;
-        totems[3].x = canvas.width - 250; totems[3].y = canvas.height - 250;
-
         gameLoop();
     };
 
     optionsBtn.onclick = () => optionsMenu.style.display = optionsMenu.style.display === 'flex' ? 'none' : 'flex';
+    mapBtn.onclick = () => toggleMap();
 
     const keys = {};
     window.onkeydown = (e) => {
@@ -203,7 +199,6 @@
 
     function toggleMap() { if (!activeChallenge) isMapOpen = !isMapOpen; }
 
-    // --- ENGINE DE PERGUNTAS ---
     function openChallenge(totem) {
         if (activeChallenge) return;
         activeChallenge = totem;
@@ -220,11 +215,11 @@
             b.className = "btn-choice"; b.innerText = choice;
             b.onclick = () => {
                 if (idx === totem.correct) {
-                    alert("🔓 COMANDO CORRETO! Sistema descriptografado.");
-                    player.tag = totem.id.charAt(0).toUpperCase() + totem.id.slice(1); // Atualiza tag na hora!
+                    alert("🔓 CONEXÃO ESTABELECIDA! Tag Atualizada.");
+                    player.tag = totem.id.charAt(0).toUpperCase() + totem.id.slice(1);
                     closeChallenge();
                 } else {
-                    alert("❌ Sintaxe incorreta. Kernel recusou o comando!");
+                    alert("❌ Código recusado pelo firewall da Distro!");
                 }
             };
             divChoices.appendChild(b);
@@ -234,144 +229,167 @@
 
     function closeChallenge() {
         challengePopup.style.display = 'none'; activeChallenge = null;
-        player.x += (player.x < canvas.width/2) ? 45 : -45; // Empurra pinguim para fora do sensor
+        player.x += (player.x < WORLD_WIDTH/2) ? 60 : -60; // Empurra para fora da área do totem
     }
 
-    // --- RENDERIZADOR DOS BIOMAS GRÁFICOS ---
+    // --- DRAW WORLD (RENDERS USING CAMERA OFFSET) ---
     function drawWorld() {
-        // 1. BIOMA CÓSMICO DEBIAN (Fundo do Espaço sideral em todo o mapa)
+        // Aplica o cálculo de onde o foco da tela deve estar com base no player
+        camera.x = player.x - canvas.width / 2;
+        camera.y = player.y - canvas.height / 2;
+
+        // Fundo Sideral Espacial (Bioma Debian)
         ctx.fillStyle = "#030208"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "rgba(255,255,255,0.4)";
-        stars.forEach(s => { ctx.beginPath(); ctx.arc(s.x * canvas.width, s.y * canvas.height, s.r, 0, Math.PI*2); ctx.fill(); });
         
-        // Desenha a grande Espiral Roxa da Debian no fundo do mapa
-        ctx.strokeStyle = "rgba(168, 85, 247, 0.15)"; ctx.lineWidth = 6;
-        ctx.beginPath();
-        for (let i = 0; i < 150; i++) {
-            let angle = 0.1 * i;
-            let x = canvas.width / 2 + (10 + 4 * angle) * Math.cos(angle);
-            let y = canvas.height / 2 + (10 + 4 * angle) * Math.sin(angle);
+        // Estrelas se movem de acordo com a câmera
+        ctx.fillStyle = "rgba(255,255,255,0.5)";
+        stars.forEach(s => {
+            let sx = s.x - camera.x; let sy = s.y - camera.y;
+            // Apenas renderiza se estiver visível no monitor
+            if(sx >= 0 && sx <= canvas.width && sy >= 0 && sy <= canvas.height) {
+                ctx.beginPath(); ctx.arc(sx, sy, s.r, 0, Math.PI*2); ctx.fill();
+            }
+        });
+        
+        // Grande Espiral Roxa da Debian desenhada no centro do Universo Gigante
+        ctx.strokeStyle = "rgba(168, 85, 247, 0.12)"; ctx.lineWidth = 8; ctx.beginPath();
+        for (let i = 0; i < 200; i++) {
+            let angle = 0.15 * i;
+            let x = (WORLD_WIDTH / 2) + (15 + 5 * angle) * Math.cos(angle) - camera.x;
+            let y = (WORLD_HEIGHT / 2) + (15 + 5 * angle) * Math.sin(angle) - camera.y;
             ctx.lineTo(x, y);
         }
         ctx.stroke();
 
-        const cx = canvas.width / 2; const cy = canvas.height / 2;
+        const cx = WORLD_WIDTH / 2 - camera.x; 
+        const cy = WORLD_HEIGHT / 2 - camera.y;
 
-        // Caminhos de Redes (Pontes) ligando os biomas
-        ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 40;
-        ctx.beginPath(); ctx.moveTo(cx, 100); ctx.lineTo(cx, canvas.height-100); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(100, cy); ctx.lineTo(canvas.width-100, cy); ctx.stroke();
+        // Grandes Rodovias Digitais (Pontes) interligando os mundos gigantes
+        ctx.strokeStyle = "#121824"; ctx.lineWidth = 60;
+        ctx.beginPath(); ctx.moveTo(WORLD_WIDTH/2 - camera.x, 200 - camera.y); ctx.lineTo(WORLD_WIDTH/2 - camera.x, WORLD_HEIGHT - 200 - camera.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(200 - camera.x, WORLD_HEIGHT/2 - camera.y); ctx.lineTo(WORLD_WIDTH - 200 - camera.x, WORLD_HEIGHT/2 - camera.y); ctx.stroke();
 
-        // 2. BIOMA LFS (Centro - O Vazio Matrix)
-        ctx.fillStyle = biomes.LFS.color; ctx.fillRect(cx - 150, cy - 150, 300, 300);
-        ctx.strokeStyle = biomes.LFS.borderColor; ctx.lineWidth = 3; ctx.strokeRect(cx - 150, cy - 150, 300, 300);
+        // 1. ILHA CENTRAL GIGANTE (LFS - O Vazio Matrix)
+        let lfsX = WORLD_WIDTH / 2 - 250 - camera.x;
+        let lfsY = WORLD_HEIGHT / 2 - 250 - camera.y;
+        ctx.fillStyle = "#0d1117"; ctx.fillRect(lfsX, lfsY, 500, 500);
+        ctx.strokeStyle = "#00ff41"; ctx.lineWidth = 3; ctx.strokeRect(lfsX, lfsY, 500, 500);
         
-        // Chuva Binária
-        ctx.fillStyle = "rgba(0, 255, 65, 0.12)"; ctx.font = "10px monospace"; matrixFrame++;
-        for(let i=0; i<12; i++) {
-            for(let j=0; j<12; j++) {
-                ctx.fillText((Math.random() > 0.5 ? "1" : "0"), (cx - 135) + i*24, (cy - 130) + j*24 + (matrixFrame % 12));
+        // Chuva Binária no Lobby
+        ctx.fillStyle = "rgba(0, 255, 65, 0.1)"; ctx.font = "11px monospace"; matrixFrame++;
+        for(let i=0; i<18; i++) {
+            for(let j=0; j<18; j++) {
+                ctx.fillText((Math.random() > 0.5 ? "1" : "0"), lfsX + 20 + i*26, lfsY + 30 + j*26 + (matrixFrame % 10));
             }
         }
-        ctx.fillStyle = varColor('--matrix-green'); ctx.font = "bold 11px monospace"; ctx.fillText("[ LFS LOBBY ]", cx - 40, cy - 125);
+        ctx.fillStyle = "#00ff41"; ctx.font = "bold 14px monospace"; ctx.textAlign = "center";
+        ctx.fillText("[ LFS CORE SERVER LOBBY ]", WORLD_WIDTH/2 - camera.x, WORLD_HEIGHT/2 - 210 - camera.y);
 
-        // 3. BIOMA KALI (Sup. Esquerdo - Zona Hacker)
-        ctx.fillStyle = biomes.Kali.color; ctx.fillRect(80, 80, 260, 220);
-        ctx.strokeStyle = biomes.Kali.borderColor; ctx.strokeRect(80, 80, 260, 220);
-        // Rachaduras Neon Roxas no chão do Kali
-        ctx.strokeStyle = "rgba(168, 85, 247, 0.4)"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(90,90); ctx.lineTo(150,160); ctx.lineTo(220,130); ctx.stroke();
-        ctx.fillStyle = "#a855f7"; ctx.fillText("KALI CYBER ZONE 💀", 100, 110);
+        // 2. BIOMA KALI (Canto Superior Esquerdo do Universo)
+        let kaliX = 150 - camera.x; let kaliY = 150 - camera.y;
+        ctx.fillStyle = "#161920"; ctx.fillRect(kaliX, kaliY, 500, 400);
+        ctx.strokeStyle = "#a855f7"; ctx.strokeRect(kaliX, kaliY, 500, 400);
+        ctx.strokeStyle = "rgba(168, 85, 247, 0.3)"; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.moveTo(kaliX+20, kaliY+20); ctx.lineTo(kaliX+200, kaliY+250); ctx.lineTo(kaliX+400, kaliY+150); ctx.stroke();
+        ctx.fillStyle = "#a855f7"; ctx.font = "14px monospace"; ctx.fillText("KALI CYBER DISTRICT 💀", kaliX + 180, kaliY + 40);
 
-        // 4. BIOMA ARCH (Sup. Direito - Platô Minimalista de Gelo)
-        ctx.fillStyle = biomes.Arch.color; ctx.fillRect(canvas.width - 340, 80, 260, 220);
-        ctx.strokeStyle = biomes.Arch.borderColor; ctx.strokeRect(canvas.width - 340, 80, 260, 220);
-        // Desenha Monólito no centro do Arch
-        ctx.fillStyle = "#020617"; ctx.fillRect(canvas.width - 220, 150, 30, 70);
-        ctx.strokeStyle = "#0ea5e9"; ctx.strokeRect(canvas.width - 220, 150, 30, 70);
-        ctx.fillStyle = "#0ea5e9"; ctx.fillText("ARCH COLD BASE 🧊", canvas.width - 320, 110);
+        // 3. BIOMA ARCH (Canto Superior Direito)
+        let archX = (WORLD_WIDTH - 650) - camera.x; let archY = 150 - camera.y;
+        ctx.fillStyle = "#0f172a"; ctx.fillRect(archX, archY, 500, 400);
+        ctx.strokeStyle = "#0ea5e9"; ctx.strokeRect(archX, archY, 500, 400);
+        // Monólito Arch
+        ctx.fillStyle = "#020617"; ctx.fillRect(archX + 230, archY + 150, 40, 120);
+        ctx.strokeStyle = "#0ea5e9"; ctx.strokeRect(archX + 230, archY + 150, 40, 120);
+        ctx.fillStyle = "#0ea5e9"; ctx.fillText("ARCH FROZEN PLATFORM 🧊", archX + 200, archY + 40);
 
-        // 5. BIOMA UBUNTU (Inf. Esquerdo - Colinas de Terra Laranja)
-        ctx.fillStyle = biomes.Ubuntu.color; ctx.fillRect(80, canvas.height - 300, 260, 220);
-        ctx.strokeStyle = biomes.Ubuntu.borderColor; ctx.strokeRect(80, canvas.height - 300, 260, 220);
-        // Círculo de Pedras do Ubuntu (Círculo de comunidade)
-        ctx.strokeStyle = "#ea580c"; ctx.beginPath(); ctx.arc(210, canvas.height - 190, 40, 0, Math.PI*2); ctx.stroke();
-        ctx.fillStyle = "#ea580c"; ctx.fillText("UBUNTU ECO-CAMP 🟠", 100, canvas.height - 275);
+        // 4. BIOMA UBUNTU (Canto Inferior Esquerdo)
+        let uX = 150 - camera.x; let uY = (WORLD_HEIGHT - 550) - camera.y;
+        ctx.fillStyle = "#2d1a10"; ctx.fillRect(uX, uY, 500, 400);
+        ctx.strokeStyle = "#ea580c"; ctx.strokeRect(uX, uY, 500, 400);
+        ctx.strokeStyle = "#ea580c"; ctx.beginPath(); ctx.arc(uX + 250, uY + 200, 60, 0, Math.PI*2); ctx.stroke();
+        ctx.fillStyle = "#ea580c"; ctx.fillText("UBUNTU COMMUNITY CAMP 🟠", uX + 200, uY + 40);
 
-        // 6. BIOMA FEDORA (Inf. Direito - Distrito Tech de Aço)
-        ctx.fillStyle = biomes.Fedora.color; ctx.fillRect(canvas.width - 340, canvas.height - 300, 260, 220);
-        ctx.strokeStyle = biomes.Fedora.borderColor; ctx.strokeRect(canvas.width - 340, canvas.height - 300, 260, 220);
-        // Linhas de circuito azul de alta tecnologia no Fedora
-        ctx.strokeStyle = "rgba(59, 130, 246, 0.6)"; ctx.beginPath();
-        ctx.moveTo(canvas.width - 320, canvas.height - 150); ctx.lineTo(canvas.width - 200, canvas.height - 150);
-        ctx.lineTo(canvas.width - 150, canvas.height - 220); ctx.stroke();
-        ctx.fillStyle = "#3b82f6"; ctx.fillText("FEDORA TECH DOMO 🔵", canvas.width - 320, canvas.height - 275);
+        // 5. BIOMA FEDORA (Canto Inferior Direito)
+        let fedX = (WORLD_WIDTH - 650) - camera.x; let fedY = (WORLD_HEIGHT - 550) - camera.y;
+        ctx.fillStyle = "#1e293b"; ctx.fillRect(fedX, fedY, 500, 400);
+        ctx.strokeStyle = "#3b82f6"; ctx.strokeRect(fedX, fedY, 500, 400);
+        ctx.strokeStyle = "rgba(59, 130, 246, 0.5)"; ctx.beginPath();
+        ctx.moveTo(fedX+50, fedY+300); ctx.lineTo(fedX+250, fedY+300); ctx.lineTo(fedX+350, fedY+150); ctx.stroke();
+        ctx.fillStyle = "#3b82f6"; ctx.fillText("FEDORA AUTOMATION DOCK 🔵", fedX + 200, fedY + 40);
 
-        // DESENHAR OS TOTENS DE INTERAÇÃO
+        // DESENHAR OS TOTENS EM SUAS COORDENADAS REAIS DO MAPA
         totems.forEach(t => {
-            ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(t.x, t.y, 20, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = "#fff"; ctx.font = "9px monospace"; ctx.textAlign = "center";
-            ctx.fillText("💻 TERMINAL", t.x, t.y - 25);
+            let tx = t.x - camera.x; let ty = t.y - camera.y;
+            ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(tx, ty, 25, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.stroke();
+            ctx.fillStyle = "#fff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+            ctx.fillText("💻 TERMINAL", tx, ty - 32);
         });
     }
 
-    // --- VISÃO MAPA GERAL (TECLA M) ---
+    // --- RADAR / MINIMAPA GLOBAL (M) ---
     function drawTacticalMap() {
-        ctx.fillStyle = "rgba(4, 6, 12, 0.96)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "rgba(4, 6, 12, 0.98)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.strokeStyle = varColor('--ui-blue'); ctx.lineWidth = 4; ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
 
-        ctx.fillStyle = varColor('--ui-blue'); ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
-        ctx.fillText("MAPA GLOBAL DE BIOMAS - TUX TOWN", canvas.width / 2, 80);
+        ctx.fillStyle = varColor('--ui-blue'); ctx.font = "bold 22px monospace"; ctx.textAlign = "center";
+        ctx.fillText("SISTEMA DE RADAR GLOBAL (MUNDO EXPANDIDO)", canvas.width / 2, 80);
 
-        const mx = canvas.width / 2; const my = canvas.height / 2;
+        // Foco de render central do radar
+        const rx = canvas.width / 2; const ry = canvas.height / 2;
         
-        // Miniaturas das zonas no radar
-        ctx.font = "11px monospace";
-        ctx.fillStyle = "#0d1117"; ctx.fillRect(mx-50, my-50, 100, 100); ctx.fillStyle = "#00ff41"; ctx.fillText("LFS", mx, my+5);
-        ctx.fillStyle = "#161920"; ctx.fillRect(mx-180, my-130, 90, 70); ctx.fillStyle = "#a855f7"; ctx.fillText("KALI", mx-135, my-90);
-        ctx.fillStyle = "#0f172a"; ctx.fillRect(mx+90, my-130, 90, 70);  ctx.fillStyle = "#0ea5e9"; ctx.fillText("ARCH", mx+135, my-90);
-        ctx.fillStyle = "#2d1a10"; ctx.fillRect(mx-180, my+60, 90, 70);  ctx.fillStyle = "#ea580c"; ctx.fillText("UBUNTU", mx-135, my+100);
-        ctx.fillStyle = "#1e293b"; ctx.fillRect(mx+90, my+60, 90, 70);   ctx.fillStyle = "#3b82f6"; ctx.fillText("FEDORA", mx+135, my+100);
+        // Desenha as representações proporcionais das distâncias no Radar
+        ctx.font = "12px monospace";
+        ctx.fillStyle = "#0d1117"; ctx.fillRect(rx-40, ry-40, 80, 80); ctx.fillStyle = "#00ff41"; ctx.fillText("LFS (LOBBY)", rx, ry+5);
+        ctx.fillStyle = "#161920"; ctx.fillRect(rx-190, ry-140, 100, 80); ctx.fillStyle = "#a855f7"; ctx.fillText("KALI ZONE", rx-140, ry-100);
+        ctx.fillStyle = "#0f172a"; ctx.fillRect(rx+90, ry-140, 100, 80);  ctx.fillStyle = "#0ea5e9"; ctx.fillText("ARCH BASE", rx+140, ry-100);
+        ctx.fillStyle = "#2d1a10"; ctx.fillRect(rx-190, ry+60, 100, 80);  ctx.fillStyle = "#ea580c"; ctx.fillText("UBUNTU", rx-140, ry+100);
+        ctx.fillStyle = "#1e293b"; ctx.fillRect(rx+90, ry+60, 100, 80);   ctx.fillStyle = "#3b82f6"; ctx.fillText("FEDORA", rx+140, ry+100);
 
-        // Indicador do player piscando no minimapa
-        let pulse = Math.abs(Math.sin(Date.now() / 150)) * 6;
+        // Bolinha vermelha de rastreamento do jogador no Radar de Escala
+        let pulse = Math.abs(Math.sin(Date.now() / 120)) * 7;
         ctx.fillStyle = "#ef4444"; ctx.beginPath();
-        let pMiniX = mx + (player.x - canvas.width/2) * 0.45;
-        let pMiniY = my + (player.y - canvas.height/2) * 0.45;
-        ctx.arc(pMiniX, pMiniY, 5 + pulse, 0, Math.PI * 2); ctx.fill();
-        ctx.fillText("VOCÊ", pMiniX, pMiniY - 12);
+        // Mapeia a posição real de 3000x3000px para a proporção do radar da janela
+        let ratioX = (player.x / WORLD_WIDTH) * 360 + (rx - 180);
+        let ratioY = (player.y / WORLD_HEIGHT) * 280 + (ry - 140);
+        
+        ctx.arc(ratioX, ratioY, 6 + pulse, 0, Math.PI * 2); ctx.fill();
+        ctx.fillText("VOCÊ AQUI", ratioX, ratioY - 15);
 
-        ctx.fillStyle = "#666"; ctx.fillText("[ Aperte 'M' para retornar ao Servidor ]", canvas.width / 2, canvas.height - 70);
+        ctx.fillStyle = "#555"; ctx.fillText("[ Pressione 'M' para fechar o Radar ]", canvas.width / 2, canvas.height - 70);
     }
 
-    // --- DESENHO DO TUX ---
+    // --- DRAW PLAYER (FIXADO EM RELAÇÃO À CÂMERA) ---
     function drawPlayer() {
-        const x = player.x, y = player.y; ctx.textAlign = "center";
+        // O jogador é desenhado na sua posição real MENOS o deslocamento da câmera
+        const x = player.x - camera.x; const y = player.y - camera.y;
+        ctx.textAlign = "center";
         
-        // Caixa de Badge/Tag da Distro
-        ctx.fillStyle = "rgba(15, 23, 42, 0.9)"; ctx.fillRect(x - 35, y - 52, 70, 15);
-        ctx.strokeStyle = varColor('--ui-blue'); ctx.strokeRect(x - 35, y - 52, 70, 15);
-        ctx.fillStyle = "#fff"; ctx.font = "bold 9px Arial"; ctx.fillText(player.tag.toUpperCase(), x, y - 41);
+        // Placa de Badge/Tag
+        ctx.fillStyle = "rgba(15, 23, 42, 0.92)"; ctx.fillRect(x - 35, y - 52, 70, 16);
+        ctx.strokeStyle = varColor('--ui-blue'); ctx.strokeRect(x - 35, y - 52, 70, 16);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 9px Arial"; ctx.fillText(player.tag.toUpperCase(), x, y - 40);
 
-        // Identificação (Nome)
-        ctx.fillStyle = "#fff"; ctx.font = "11px monospace"; ctx.fillText(player.name, x, y + 33);
+        // Identificação
+        ctx.fillStyle = "#fff"; ctx.font = "12px monospace"; ctx.fillText(player.name, x, y + 35);
 
         // Corpo
-        ctx.fillStyle = player.color; ctx.beginPath(); ctx.ellipse(x, y, 16, 22, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = player.color; ctx.beginPath(); ctx.ellipse(x, y, 17, 23, 0, 0, Math.PI*2); ctx.fill();
         // Barriga
-        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(x, y+4, 10, 15, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(x, y+4, 11, 16, 0, 0, Math.PI*2); ctx.fill();
         // Rosto
-        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x-4, y-8, 1.8, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(x+4, y-8, 1.8, 0, 7); ctx.fill();
-        ctx.fillStyle = "orange"; ctx.fillRect(x-3, y-4, 6, 4);
+        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x-5, y-8, 2, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(x+5, y-8, 2, 0, 7); ctx.fill();
+        ctx.fillStyle = "orange"; ctx.fillRect(x-3.5, y-4, 7, 4.5);
     }
 
+    // --- ENGINE PRINCIPAL ---
     function loop() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
         if (isMapOpen) {
             drawTacticalMap();
         } else {
-            // Movimentação comum
+            // Movimentação livre pelo mapa infinito
             if (!activeChallenge) {
                 if (keys['ArrowUp'] || keys['KeyW']) player.y -= player.speed;
                 if (keys['ArrowDown'] || keys['KeyS']) player.y += player.speed;
@@ -379,15 +397,15 @@
                 if (keys['ArrowRight'] || keys['KeyD']) player.x += player.speed;
             }
 
-            // Bloqueadores de bordas da tela
-            if (player.x < 20) player.x = 20; if (player.x > canvas.width - 20) player.x = canvas.width - 20;
-            if (player.y < 20) player.y = 20; if (player.y > canvas.height - 20) player.y = canvas.height - 20;
+            // Bloqueio físico das bordas finais do mapa de 3000px
+            if (player.x < 30) player.x = 30; if (player.x > WORLD_WIDTH - 30) player.x = WORLD_WIDTH - 30;
+            if (player.y < 30) player.y = 30; if (player.y > WORLD_HEIGHT - 30) player.y = WORLD_HEIGHT - 30;
 
-            // Motor de colisão com os Terminais
+            // Sensores de Proximidade dos totens gigantes
             if (!activeChallenge) {
                 totems.forEach(t => {
-                    let d = Math.sqrt((player.x - t.x)**2 + (player.y - t.y)**2);
-                    if (d < 35) openChallenge(t);
+                    let distance = Math.sqrt((player.x - t.x)**2 + (player.y - t.y)**2);
+                    if (distance < 45) openChallenge(t);
                 });
             }
 
