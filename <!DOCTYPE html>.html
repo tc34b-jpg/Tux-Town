@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tux Town - Terminal Challenges</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background-color: #1e6b3e; /* Grama escura */
+        }
+
+        #ui-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            pointer-events: auto;
+        }
+
+        .control-group {
+            margin-bottom: 8px;
+        }
+
+        label {
+            font-size: 11px;
+            display: block;
+            margin-bottom: 4px;
+            color: #bdc3c7;
+            text-transform: uppercase;
+        }
+
+        input[type="color"] {
+            border: none;
+            width: 45px;
+            height: 25px;
+            border-radius: 4px;
+            cursor: pointer;
+            background: none;
+        }
+
+        /* Estilização do Terminal do Painel de Missões */
+        #terminal-box {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0d1117;
+            border: 2px solid #30363d;
+            border-top: 25px solid #21262d;
+            padding: 15px;
+            border-radius: 6px;
+            width: 85%;
+            max-width: 550px;
+            display: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+        }
+
+        /* Título da janelinha do terminal */
+        #terminal-box::before {
+            content: "🐧 Bash Terminal - Desafio de Distro";
+            position: absolute;
+            top: -21px;
+            left: 10px;
+            font-size: 11px;
+            color: #8b949e;
+            font-family: monospace;
+        }
+
+        #terminal-box h3 { margin: 0 0 5px 0; color: #58a6ff; font-family: monospace; }
+        #terminal-box p { margin: 0 0 12px 0; font-size: 13px; color: #c9d1d9; line-height: 1.4; }
+       
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+            background: #010409;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #30363d;
+        }
+
+        .prompt-symbol {
+            color: #39d353;
+            font-family: monospace;
+            font-weight: bold;
+            margin-right: 8px;
+            user-select: none;
+        }
+
+        #cmd-input {
+            background: transparent;
+            border: none;
+            color: #58a6ff;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            width: 100%;
+            outline: none;
+        }
+
+        #success-badge {
+            color: #39d353;
+            font-weight: bold;
+            margin-top: 8px;
+            font-size: 12px;
+            display: none;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <div id="ui-panel">
+        <div class="control-group">
+            <label for="bodyColor">Cor do Tux:</label>
+            <input type="color" id="bodyColor" value="#2c3e50">
+        </div>
+        <div class="control-group">
+            <label for="bellyColor">Barriga:</label>
+            <input type="color" id="bellyColor" value="#ffffff">
+        </div>
+    </div>
+
+    <div id="terminal-box">
+        <h3 id="distro-title">Nome da Distro</h3>
+        <p id="distro-desc">Detalhes...</p>
+        <div class="terminal-input-line">
+            <span class="prompt-symbol">tux@linux:~#</span>
+            <input type="text" id="cmd-input" placeholder="Digite o comando de atualização aqui..." autocomplete="off">
+        </div>
+        <div id="success-badge">✓ Sucesso! Ícone de acessório liberado para a cabeça do seu Tux!</div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const bodyColorPicker = document.getElementById('bodyColor');
+    const bellyColorPicker = document.getElementById('bellyColor');
+    const terminalBox = document.getElementById('terminal-box');
+    const distroTitle = document.getElementById('distro-title');
+    const distroDesc = document.getElementById('distro-desc');
+    const cmdInput = document.getElementById('cmd-input');
+    const successBadge = document.getElementById('success-badge');
+
+    // Configurações do Pinguim Jogador
+    const player = {
+        x: 120,
+        y: 300,
+        radius: 18,
+        speed: 4,
+        colorBody: bodyColorPicker.value,
+        colorBelly: bellyColorPicker.value,
+        colorBeak: '#ff9f43',
+        equippedAccessory: 'LFS' // Começa com o LFS equipado!
+    };
+
+    const keys = {};
+    // Armazena quais conquistas o pinguim já liberou
+    const unlockedAccessories = {
+        LFS: true,
+        Arch: false,
+        Kali: false
+    };
+
+    // Definição das Áreas das Distribuições
+    const areas = [
+        {
+            id: "LFS",
+            name: "Lobby: Linux From Scratch (LFS)",
+            desc: "Criada em 1999. Não é uma distribuição pronta, mas um guia para montar seu próprio Linux compilando do zero. Como recompensa pelo esforço conceitual, seu acessório já veio DESBLOQUEADO por padrão!",
+            expectedCommand: "",
+            color: "#4f5d73",
+            x: 20, y: 180, w: 220, h: 240,
+            totemX: 200, totemY: 300
+        },
+        {
+            id: "Arch",
+            name: "Setor Arch Linux",
+            desc: "Lançado em 2002 com a filosofia 'Keep It Simple'. Para liberar o acessório do Arch, digite o comando correto do gerenciador pacman para atualizar e sincronizar totalmente os repositórios do sistema:",
+            expectedCommand: "sudo pacman -Syu",
+            color: "#1793d1",
+            x: 420, y: 40, w: 340, h: 230,
+            totemX: 590, totemY: 220
+        },
+        {
+            id: "Kali",
+            name: "Setor Kali Linux",
+            desc: "Distribuição baseada em Debian focada em segurança cibernética e auditoria hacker. Para desbloquear o emblema do Kali, digite o comando clássico do gerenciador APT usado para atualizar a lista de pacotes indexados:",
+            expectedCommand: "sudo apt update",
+            color: "#2a394a",
+            x: 420, y: 330, w: 340, h: 230,
+            totemX: 590, totemY: 510
+        }
+    ];
+
+    let activeArea = null;
+
+    bodyColorPicker.addEventListener('input', (e) => player.colorBody = e.target.value);
+    bellyColorPicker.addEventListener('input', (e) => player.colorBelly = e.target.value);
+
+    // Bloqueia as setas do teclado de moverem o boneco enquanto o usuário digita no terminal
+    window.addEventListener('keydown', (e) => {
+        if (document.activeElement === cmdInput) {
+            if (e.key === 'Enter') checkCommand();
+            return;
+        }
+        keys[e.code] = true;
+    });
+    window.addEventListener('keyup', (e) => {
+        if (document.activeElement === cmdInput) return;
+        keys[e.code] = false;
+    });
+
+    // Validador do comando digitado pelo usuário
+    function checkCommand() {
+        const typed = cmdInput.value.trim();
+        if (activeArea && typed === activeArea.expectedCommand) {
+            unlockedAccessories[activeArea.id] = true;
+            player.equippedAccessory = activeArea.id; // Equipa o acessório na cabeça na hora!
+            successBadge.style.display = 'block';
+            cmdInput.value = "";
+            setTimeout(() => { successBadge.style.display = 'none'; }, 3000);
+        } else {
+            // Efeito visual de erro piscando no input
+            cmdInput.style.color = '#ff6b6b';
+            setTimeout(() => { cmdInput.style.color = '#58a6ff'; }, 500);
+        }
+    }
+
+    // Renderização do Pinguim Tux
+    function drawTux(x, y, p) {
+        // Pés
+        ctx.fillStyle = p.colorBeak;
+        ctx.beginPath(); ctx.ellipse(x - 9, y + 16, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(x + 9, y + 16, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+        // Corpo
+        ctx.fillStyle = p.colorBody;
+        ctx.beginPath(); ctx.ellipse(x, y, p.radius, p.radius + 4, 0, 0, Math.PI * 2); ctx.fill();
+
+        // Barriga
+        ctx.fillStyle = p.colorBelly;
+        ctx.beginPath(); ctx.ellipse(x, y + 4, p.radius - 5, p.radius - 1, 0, 0, Math.PI * 2); ctx.fill();
+
+        // Olhos
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(x - 5, y - 8, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 5, y - 8, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(x - 5, y - 8, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 5, y - 8, 2, 0, Math.PI * 2); ctx.fill();
+
+        // Bico
+        ctx.fillStyle = p.colorBeak;
+        ctx.beginPath();
+        ctx.moveTo(x - 6, y - 4); ctx.lineTo(x + 6, y - 4); ctx.lineTo(x, y + 3);
+        ctx.closePath(); ctx.fill();
+
+        // INDICADOR DE ACESSÓRIO EQUIPADO (Desenha a plaquinha flutuando na cabeça!)
+        if (p.equippedAccessory) {
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(x - 25, y - 38, 50, 14);
+            ctx.strokeStyle = '#58a6ff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x - 25, y - 38, 50, 14);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(p.equippedAccessory, x, y - 28);
+        }
+    }
+
+    // Desenha os Totens no Mapa
+    function drawTotem(x, y, name) {
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath(); ctx.ellipse(x, y + 15, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#555';
+        ctx.fillRect(x - 3, y - 10, 6, 25);
+        ctx.fillStyle = '#21262d';
+        ctx.fillRect(x - 30, y - 25, 60, 16);
+        ctx.strokeStyle = '#30363d';
+        ctx.strokeRect(x - 30, y - 25, 60, 16);
+        ctx.fillStyle = '#58a6ff';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(name, x, y - 14);
+    }
+
+    // Processamento do Jogo
+    function update() {
+        if (document.activeElement !== cmdInput) {
+            if (keys['ArrowUp'] || keys['KeyW']) player.y -= player.speed;
+            if (keys['ArrowDown'] || keys['KeyS']) player.y += player.speed;
+            if (keys['ArrowLeft'] || keys['KeyA']) player.x -= player.speed;
+            if (keys['ArrowRight'] || keys['KeyD']) player.x += player.speed;
+        }
+
+        // Limita a tela
+        if (player.x < player.radius) player.x = player.radius;
+        if (player.x > canvas.width - player.radius) player.x = canvas.width - player.radius;
+        if (player.y < player.radius) player.y = player.radius;
+        if (player.y > canvas.height - player.radius) player.y = canvas.height - player.radius;
+
+        // Verifica Proximidade de Missão
+        let checkingArea = null;
+        for (let area of areas) {
+            let dx = player.x - area.totemX;
+            let dy = player.y - area.totemY;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 40) {
+                checkingArea = area;
+                break;
+            }
+        }
+
+        if (checkingArea) {
+            if (activeArea !== checkingArea) {
+                activeArea = checkingArea;
+                distroTitle.innerText = checkingArea.name;
+                distroDesc.innerText = checkingArea.desc;
+                terminalBox.style.display = 'block';
+               
+                // Se for o lobby LFS ou uma área já conquistada, esconde o campo de digitação
+                if (checkingArea.id === "LFS") {
+                    cmdInput.parentElement.style.display = 'none';
+                } else {
+                    cmdInput.parentElement.style.display = 'flex';
+                    cmdInput.placeholder = `Dica: ${checkingArea.expectedCommand}`;
+                }
+
+                // Auto-equipa o acessório da área caso ele já tenha completado esse desafio antes
+                if (unlockedAccessories[checkingArea.id]) {
+                    player.equippedAccessory = checkingArea.id;
+                }
+            }
+        } else {
+            activeArea = null;
+            terminalBox.style.display = 'none';
+            cmdInput.blur();
+        }
+    }
+
+    // Desenho Gráfico Geral
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Desenha os territórios das Distros
+        for (let area of areas) {
+            ctx.fillStyle = area.color;
+            ctx.globalAlpha = 0.25;
+            ctx.fillRect(area.x, area.y, area.w, area.h);
+            ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = area.color;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(area.x, area.y, area.w, area.h);
+
+            drawTotem(area.totemX, area.totemY, area.id);
+        }
+
+        // Desenha o Pinguim
+        drawTux(player.x, player.y, player);
+    }
+
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+</script>
+
+</body>
+</html>
