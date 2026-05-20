@@ -36,14 +36,14 @@
             width: 350px; text-align: center;
         }
 
-        #game-view { display: none; position: relative; }
+        #game-view { display: none; position: relative; width: 100vw; height: 100vh; }
 
         /* --- UI OVERLAYS --- */
         .btn-ui {
             position: absolute; background: rgba(0,0,0,0.8);
             border: 1px solid var(--ui-blue); color: var(--ui-blue);
             padding: 10px 15px; cursor: pointer; border-radius: 5px;
-            font-weight: bold; transition: 0.3s;
+            font-weight: bold; transition: 0.3s; z-index: 10;
         }
         .btn-ui:hover { background: var(--ui-blue); color: #fff; }
 
@@ -54,21 +54,27 @@
             position: absolute; top: 70px; right: 20px;
             background: rgba(0,0,0,0.9); border: 1px solid #444;
             display: none; flex-direction: column; padding: 10px; border-radius: 5px;
+            z-index: 10;
+        }
+
+        /* --- POPUP DE DESAFIOS (QUESTIONS) --- */
+        #challenge-popup {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #000; border: 2px solid var(--matrix-green);
+            box-shadow: 0 0 20px var(--matrix-green);
+            padding: 20px; border-radius: 10px; display: none;
+            width: 400px; text-align: center; z-index: 40;
         }
 
         /* --- INPUTS --- */
         input, select, button {
             width: 100%; padding: 10px; margin: 10px 0;
             border-radius: 5px; border: 1px solid #444;
-            background: #222; color: #fff;
+            background: #222; color: #fff; box-sizing: border-box;
         }
         #btn-enter { background: var(--matrix-green); color: #000; font-weight: bold; cursor: pointer; border: none; }
-
-        #map-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: none;
-            justify-content: center; align-items: center; z-index: 50;
-        }
+        .btn-choice { background: #111; border: 1px solid var(--ui-blue); text-align: left; cursor: pointer; }
+        .btn-choice:hover { background: var(--ui-blue); }
     </style>
 </head>
 <body>
@@ -77,10 +83,10 @@
     <h1 style="color: var(--matrix-green); font-size: 3em; margin-bottom: 10px;">TUX TOWN</h1>
     <div class="menu-card">
         <h3>CUSTOMIZE SEU TUX</h3>
-        <input type="text" id="p-name" placeholder="Nome do seu Tux..." maxlength="12">
+        <input type="text" id="p-name" placeholder="Nome do seu Tux..." maxlength="12" value="Tuxer">
         
         <label>Cor do Corpo:</label>
-        <input type="color" id="p-color-body" value="#333333">
+        <input type="color" id="p-color-body" value="#1793d1">
         
         <label>Tag da Distro:</label>
         <select id="p-tag">
@@ -103,34 +109,55 @@
     
     <div id="options-menu">
         <button onclick="location.reload()">Sair do Server</button>
-        <button onclick="alert('Configurações em breve!')">Configurações</button>
-        <button onclick="alert('Volte ao início para mudar!')">Customização</button>
+        <button onclick="alert('Configurações: Use WASD/Setas para andar e M para o Mapa!')">Controles</button>
     </div>
-</div>
 
-<div id="map-overlay">
-    <div style="text-align: center;">
-        <h2 style="color: var(--ui-blue);">VISÃO DO MAPA</h2>
-        <img id="mini-map-preview" style="border: 2px solid var(--ui-blue); background: #111; width: 400px; height: 300px;">
-        <p>[Pressione M para fechar]</p>
+    <div id="challenge-popup">
+        <h3 id="challenge-title" style="color: var(--matrix-green); margin-top: 0;">DESAFIO TERMINAL</h3>
+        <p id="challenge-text">Pergunta...</p>
+        <div id="challenge-choices"></div>
+        <button onclick="closeChallenge()" style="background: #cc0000; margin-top: 15px; border: none; font-weight: bold; cursor: pointer;">FECHAR</button>
     </div>
 </div>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
 
     // --- ESTADO DO JOGO ---
     let player = {
         x: 0, y: 0, 
         name: "Tux", color: "#333", 
-        tag: "LFS", speed: 5
+        tag: "LFS", speed: 6
     };
     
     let isMapOpen = false;
+    let activeChallenge = null;
     let matrixFrame = 0;
+
+    // --- CONFIGURAÇÃO DOS DESAFIOS (QUESTIONS) ---
+    const terminals = [
+        {
+            id: "kali-term", name: "Terminal Kali", zone: "Kali",
+            x: 200, y: 200, radius: 25, color: "#58a6ff",
+            question: "Qual comando é usado no terminal para testar a conectividade de rede enviando pacotes para um servidor?",
+            choices: ["a) ping", "b) cd", "c) mkdir", "d) rm"],
+            correct: 0
+        },
+        {
+            id: "arch-term", name: "Terminal Arch", zone: "Arch",
+            x: window.innerWidth - 200, y: window.innerHeight - 200, radius: 25, color: "#1793d1",
+            question: "No Arch Linux, qual é o gerenciador de pacotes padrão usado para instalar programas via terminal?",
+            choices: ["a) apt", "b) pacman", "c) dnf", "d) yum"],
+            correct: 1
+        }
+    ];
 
     // --- ELEMENTOS UI ---
     const startScreen = document.getElementById('start-screen');
@@ -138,7 +165,8 @@
     const btnEnter = document.getElementById('btn-enter');
     const optionsBtn = document.getElementById('options-btn');
     const optionsMenu = document.getElementById('options-menu');
-    const mapOverlay = document.getElementById('map-overlay');
+    const mapBtn = document.getElementById('map-btn');
+    const challengePopup = document.getElementById('challenge-popup');
 
     // --- LÓGICA DE INÍCIO ---
     btnEnter.onclick = () => {
@@ -149,9 +177,13 @@
         startScreen.style.display = 'none';
         gameView.style.display = 'block';
         
-        // Posiciona no centro da ilha LFS
+        // Centraliza o jogador no Lobby do LFS
         player.x = canvas.width / 2;
         player.y = canvas.height / 2;
+        
+        // Atualiza dinamicamente as posições dos terminais baseadas no tamanho atual da tela
+        terminals[1].x = canvas.width - 200;
+        terminals[1].y = canvas.height - 200;
         
         gameLoop();
     };
@@ -160,7 +192,9 @@
         optionsMenu.style.display = optionsMenu.style.display === 'flex' ? 'none' : 'flex';
     };
 
-    // --- INPUTS ---
+    mapBtn.onclick = () => { toggleMap(); };
+
+    // --- CONTROLES ---
     const keys = {};
     window.onkeydown = (e) => {
         keys[e.code] = true;
@@ -169,95 +203,243 @@
     window.onkeyup = (e) => keys[e.code] = false;
 
     function toggleMap() {
+        if (activeChallenge) return; // Não abre mapa durante pergunta
         isMapOpen = !isMapOpen;
-        mapOverlay.style.display = isMapOpen ? 'flex' : 'none';
     }
 
-    // --- DESENHO DO MAPA (ILHAS) ---
+    function openChallenge(term) {
+        if (activeChallenge === term) return;
+        activeChallenge = term;
+        
+        document.getElementById('challenge-title').innerText = `DESAFIO: ${term.name.toUpperCase()}`;
+        document.getElementById('challenge-text').innerText = term.question;
+        
+        const choicesDiv = document.getElementById('challenge-choices');
+        choicesDiv.innerHTML = "";
+        
+        term.choices.forEach((choice, index) => {
+            const btn = document.createElement('button');
+            btn.className = "btn-choice";
+            btn.innerText = choice;
+            btn.onclick = () => checkAnswer(index, term.correct);
+            choicesDiv.appendChild(btn);
+        });
+        
+        challengePopup.style.display = 'block';
+    }
+
+    function checkAnswer(selected, correct) {
+        if (selected === correct) {
+            alert("💻 ACERTOU! Acesso concedido ao módulo da distro.");
+            closeChallenge();
+        } else {
+            alert("❌ Resposta incorreta. Tente novamente no terminal!");
+        }
+    }
+
+    function closeChallenge() {
+        challengePopup.style.display = 'none';
+        activeChallenge = null;
+        // Empurra o jogador um pouco para trás para sair do raio de colisão imediato
+        player.x += 40;
+    }
+
+    // --- VERIFICAÇÃO DE COLISÃO COM OS TERMINAIS ---
+    function checkCollisions() {
+        if (activeChallenge || isMapOpen) return;
+
+        terminals.forEach(term => {
+            const dx = player.x - term.x;
+            const dy = player.y - term.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Se o jogador chegar perto do terminal, abre a pergunta
+            if (distance < term.radius + 20) {
+                openChallenge(term);
+            }
+        });
+    }
+
+    // --- DESENHO DO MAPA DE JOGO (ILHAS) ---
     function drawMap() {
-        // "Vazio digital"
         ctx.fillStyle = "#050505";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Pontes
-        ctx.strokeStyle = "#333"; ctx.lineWidth = 40;
-        ctx.beginPath(); ctx.moveTo(canvas.width/2, 0); ctx.lineTo(canvas.width/2, canvas.height); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, canvas.height/2); ctx.lineTo(canvas.width, canvas.height/2); ctx.stroke();
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
 
-        // ILHA CENTRAL (LFS) - Matrix Style
-        const cx = canvas.width/2, cy = canvas.height/2;
-        ctx.fillStyle = "#0d1117";
-        ctx.fillRect(cx - 150, cy - 150, 300, 300);
-        ctx.strokeStyle = "#00ff41"; ctx.lineWidth = 2;
-        ctx.strokeRect(cx - 150, cy - 150, 300, 300);
+        // Desenhar Pontes de Conexão
+        ctx.strokeStyle = "#222222"; ctx.lineWidth = 30;
+        ctx.beginPath(); ctx.moveTo(cx, 100); ctx.lineTo(cx, canvas.height - 100); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(100, cy); ctx.lineTo(canvas.width - 100, cy); ctx.stroke();
 
-        // EFEITO MATRIX NO CHÃO
-        ctx.fillStyle = "rgba(0, 255, 65, 0.15)";
-        ctx.font = "10px monospace";
+        // 1. ILHA CENTRAL (LOBBY LFS) - Estilo Matrix
+        ctx.fillStyle = "#0d1117"; ctx.fillRect(cx - 150, cy - 150, 300, 300);
+        ctx.strokeStyle = varColor('--matrix-green'); ctx.lineWidth = 2; ctx.strokeRect(cx - 150, cy - 150, 300, 300);
+
+        // Efeito Cascata de Código no Fundo
+        ctx.fillStyle = "rgba(0, 255, 65, 0.08)"; ctx.font = "10px monospace";
         matrixFrame++;
-        for(let i=0; i<15; i++) {
-            for(let j=0; j<15; j++) {
-                let char = (Math.random() > 0.5) ? "1" : "0";
-                ctx.fillText(char, (cx - 140) + i*20, (cy - 140) + j*20 + (matrixFrame % 20));
+        for(let i=0; i<14; i++) {
+            for(let j=0; j<14; j++) {
+                let char = (Math.random() > 0.6) ? "1" : "0";
+                ctx.fillText(char, (cx - 140) + i*21, (cy - 135) + j*21 + (matrixFrame % 15));
             }
         }
-        ctx.fillStyle = "#00ff41"; ctx.fillText("LOBBY LFS - TERMINAL", cx - 70, cy - 130);
+        ctx.fillStyle = varColor('--matrix-green');
+        ctx.font = "12px 'Courier New'";
+        ctx.fillText("LOBBY LFS - TERMINAL", cx - 75, cy - 120);
 
-        // ILHA KALI (Superior Esquerda)
-        ctx.fillStyle = "#2a394a"; ctx.fillRect(100, 100, 200, 200);
-        ctx.fillStyle = "#58a6ff"; ctx.fillText("ZONA KALI", 150, 120);
+        // 2. ILHA KALI (Superior Esquerda)
+        ctx.fillStyle = "#1c252e"; ctx.fillRect(100, 100, 200, 200);
+        ctx.strokeStyle = "#58a6ff"; ctx.strokeRect(100, 100, 200, 200);
+        ctx.fillStyle = "#58a6ff"; ctx.fillText("ZONA KALI LINUX", 120, 130);
 
-        // ILHA ARCH (Inferior Direita)
-        ctx.fillStyle = "#1793d1"; ctx.fillRect(canvas.width - 300, canvas.height - 300, 200, 200);
-        ctx.fillStyle = "#fff"; ctx.fillText("ARCH TERRITORY", canvas.width - 250, canvas.height - 280);
+        // 3. ILHA ARCH (Inferior Direita)
+        ctx.fillStyle = "#0f2535"; ctx.fillRect(canvas.width - 300, canvas.height - 300, 200, 200);
+        ctx.strokeStyle = "#1793d1"; ctx.strokeRect(canvas.width - 300, canvas.height - 300, 200, 200);
+        ctx.fillStyle = "#1793d1"; ctx.fillText("ARCH TERRITORY", canvas.width - 280, canvas.height - 270);
+
+        // DESENHAR OS TERMINAIS INTERATIVOS (QUESTIONS)
+        terminals.forEach(term => {
+            ctx.fillStyle = term.color;
+            ctx.beginPath(); ctx.arc(term.x, term.y, term.radius, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.stroke();
+            
+            // Texto indicativo em cima do terminal
+            ctx.fillStyle = "#fff"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
+            ctx.fillText("💻 DESAFIO", term.x, term.y - term.radius - 5);
+        });
     }
 
-    // --- DESENHO DO TUX COM TAG ---
+    // --- MÓDULO EXCLUSIVO: VISÃO GERAL DO MAPA TÁTICO (TECLA M) ---
+    function drawTacticalMap() {
+        // Fundo escuro do mapa tático
+        ctx.fillStyle = "rgba(10, 15, 24, 0.95)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Moldura do Mapa
+        ctx.strokeStyle = varColor('--ui-blue'); ctx.lineWidth = 4;
+        ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
+
+        ctx.fillStyle = varColor('--ui-blue');
+        ctx.font = "bold 24px 'Courier New'"; ctx.textAlign = "center";
+        ctx.fillText("SISTEMA DE MAPEAMENTO DE DISTROS - TUX TOWN", canvas.width / 2, 90);
+
+        // Renderiza uma versão isométrica/minificada no centro
+        const mx = canvas.width / 2;
+        const my = canvas.height / 2;
+
+        // Representação das Ilhas no Mapa Tático
+        ctx.lineWidth = 2;
+        // LFS Central
+        ctx.fillStyle = "#0d1117"; ctx.strokeStyle = varColor('--matrix-green');
+        ctx.fillRect(mx - 60, my - 60, 120, 120); ctx.strokeRect(mx - 60, my - 60, 120, 120);
+        ctx.fillStyle = "#00ff41"; ctx.font = "12px sans-serif"; ctx.fillText("LOBBY (LFS)", mx, my + 5);
+
+        // Kali
+        ctx.fillStyle = "#1c252e"; ctx.strokeStyle = "#58a6ff";
+        ctx.fillRect(mx - 220, my - 160, 100, 100); ctx.strokeRect(mx - 220, my - 160, 100, 100);
+        ctx.fillStyle = "#58a6ff"; ctx.fillText("ZONA KALI", mx - 170, my - 105);
+
+        // Arch
+        ctx.fillStyle = "#0f2535"; ctx.strokeStyle = "#1793d1";
+        ctx.fillRect(mx + 120, my + 60, 100, 100); ctx.strokeRect(mx + 120, my + 60, 100, 100);
+        ctx.fillStyle = "#1793d1"; ctx.fillText("ARCH LINUX", mx + 170, my + 115);
+
+        // Ponto piscante do Jogador Real no Mapa
+        let pulse = Math.abs(Math.sin(Date.now() / 200)) * 8;
+        ctx.fillStyle = "#ff3333";
+        ctx.beginPath();
+        // Mapeia a posição do jogador para a escala do minimapa
+        let pMiniX = mx + (player.x - canvas.width/2) * 0.4;
+        let pMiniY = my + (player.y - canvas.height/2) * 0.4;
+        ctx.arc(pMiniX, pMiniY, 6 + pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#ff3333"; ctx.font = "bold 11px sans-serif";
+        ctx.fillText("VOCÊ", pMiniX, pMiniY - 15);
+
+        ctx.fillStyle = "#888"; ctx.font = "14px monospace";
+        ctx.fillText("[ Pressione 'M' ou clique no botão para retornar ao jogo ]", canvas.width / 2, canvas.height - 80);
+    }
+
+    // --- DESENHO DO TUX ---
     function drawPlayer() {
         const x = player.x, y = player.y;
+        ctx.textAlign = "center";
         
-        // Tag da Distro
-        ctx.fillStyle = "rgba(0,0,0,0.7)";
-        ctx.fillRect(x - 30, y - 55, 60, 15);
-        ctx.strokeStyle = "#3498db"; ctx.strokeRect(x - 30, y - 55, 60, 15);
-        ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial"; ctx.textAlign = "center";
-        ctx.fillText(player.tag, x, y - 44);
+        // Tag da Distro (Aparência de Tag/Badge)
+        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        ctx.fillRect(x - 35, y - 55, 70, 16);
+        ctx.strokeStyle = varColor('--ui-blue'); ctx.lineWidth = 1;
+        ctx.strokeRect(x - 35, y - 55, 70, 16);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 9px Arial";
+        ctx.fillText(player.tag, x, y - 43);
 
-        // Nome
-        ctx.fillStyle = "#fff"; ctx.fillText(player.name, x, y + 35);
+        // Nome do Jogador
+        ctx.fillStyle = "#fff"; ctx.font = "12px monospace";
+        ctx.fillText(player.name, x, y + 35);
 
-        // Corpo Pinguim
+        // Corpo Base (Pinguim)
         ctx.fillStyle = player.color;
-        ctx.beginPath(); ctx.ellipse(x, y, 20, 25, 0, 0, Math.PI*2); ctx.fill();
-        // Barriga
+        ctx.beginPath(); ctx.ellipse(x, y, 18, 24, 0, 0, Math.PI*2); ctx.fill();
+        
+        // Barriga branca
         ctx.fillStyle = "#fff";
-        ctx.beginPath(); ctx.ellipse(x, y+5, 12, 18, 0, 0, Math.PI*2); ctx.fill();
-        // Olhos e Bico (Simplificado)
-        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x-5, y-10, 2, 0, 7); ctx.fill();
-        ctx.beginPath(); ctx.arc(x+5, y-10, 2, 0, 7); ctx.fill();
-        ctx.fillStyle = "orange"; ctx.fillRect(x-4, y-5, 8, 5);
+        ctx.beginPath(); ctx.ellipse(x, y + 4, 11, 16, 0, 0, Math.PI*2); ctx.fill();
+        
+        // Olhos e Bico
+        ctx.fillStyle = "#000"; 
+        ctx.beginPath(); ctx.arc(x - 5, y - 10, 2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 5, y - 10, 2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "orange"; ctx.fillRect(x - 4, y - 5, 8, 5);
     }
 
-    function update() {
-        if (isMapOpen) return;
+    // --- SISTEMA DE MOVIMENTAÇÃO ---
+    function updateMovement() {
+        if (isMapOpen || activeChallenge) return;
+
         if (keys['ArrowUp'] || keys['KeyW']) player.y -= player.speed;
         if (keys['ArrowDown'] || keys['KeyS']) player.y += player.speed;
         if (keys['ArrowLeft'] || keys['KeyA']) player.x -= player.speed;
         if (keys['ArrowRight'] || keys['KeyD']) player.x += player.speed;
+
+        // Limites da Janela (não deixa o pinguim fugir da tela)
+        if (player.x < 20) player.x = 20;
+        if (player.x > canvas.width - 20) player.x = canvas.width - 20;
+        if (player.y < 20) player.y = 20;
+        if (player.y > canvas.height - 20) player.y = canvas.height - 20;
     }
 
+    // --- GAME LOOP PRINCIPAL ---
     function gameLoop() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        update();
-        drawMap();
-        drawPlayer();
+        
+        if (isMapOpen) {
+            drawTacticalMap();
+        } else {
+            updateMovement();
+            checkCollisions();
+            drawMap();
+            drawPlayer();
+        }
+        
         requestAnimationFrame(gameLoop);
     }
 
-    // Redimensionar tela
+    // Auxiliar para pegar cores do CSS root
+    function varColor(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    // Reajuste de tela automático
     window.onresize = () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        resizeCanvas();
+        if(terminals[1]) {
+            terminals[1].x = canvas.width - 200;
+            terminals[1].y = canvas.height - 200;
+        }
     };
 </script>
 </body>
